@@ -12,7 +12,7 @@ func main() {
 	v := viper.New()
 	v.AutomaticEnv()
 
-	if v.Get("AWS_LAMBDA_FUNCTION_NAME") == "" {
+	if v.Get("AWS_LAMBDA_FUNCTION_NAME") == nil {
 		http.HandleFunc("/clap", api.HTTPHandler)
 		http.ListenAndServe(":3000", nil)
 	} else {

@@ -14,7 +14,7 @@ func HTTPHandler(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case "GET":
 		res = getClaps()
-	case "PUT":
+	case "POST":
 		res = addClap()
 	default:
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
