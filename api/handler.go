@@ -32,9 +32,17 @@ func HTTPHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 //EventHandler AWS lambda event handler
-func EventHandler(request events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+func EventHandler(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	var res map[string]interface{}
+	switch r.HTTPMethod {
+	case "GET":
+		res = getClaps()
+	case "PUT":
+		res = addClap()
+	}
+
 	return &events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       "Hello, World",
+		StatusCode: res["StatusCode"].(int),
+		Body:       res["Body"].(string),
 	}, nil
 }
