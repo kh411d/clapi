@@ -45,7 +45,7 @@ After deployed, as example you may access your function as this,
 url: [YOUR-DOMAIN]/api/handler
 
 ```
-$ curl -X POST -d '{"url":"http://clapi/clap"}' https://clapi.vercel.app/api/handler
+$ curl -X POST https://clapi.vercel.app/api/handler?url=http://clapi/clap
 {"statusCode":200,"headers":null,"multiValueHeaders":null,"body":"ok"}
 
 $ curl -X GET https://clapi.vercel.app/api/handler?url=http://clapi/clap
@@ -70,7 +70,7 @@ URL: [YOUR-DOMAIN]/.netlify/functions/clapi
 $ curl -X GET https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
 $ 6
 
-$ curl -X  POST -d '{"url":"http://clapi/clap"}' https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi
+$ curl -X POST https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
 $ ok
 ```
 
