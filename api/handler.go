@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
@@ -32,11 +31,6 @@ func init() {
 		panic(err)
 	}
 
-}
-
-//ReqData request data that comes from post body
-type ReqData struct {
-	URL string `json:"url"`
 }
 
 func handleGetClap(ctx context.Context, db KV, k string) (*events.APIGatewayProxyResponse, error) {
@@ -94,9 +88,10 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var res *events.APIGatewayProxyResponse
 	var err error
 
+	url := r.URL.Query().Get("url")
+
 	switch r.Method {
 	case "GET":
-		url := r.URL.Query().Get("url")
 		res, err = handleGetClap(r.Context(), db, url)
 		if err != nil {
 			httpError(w, 500, err)
@@ -104,13 +99,7 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 
 	case "POST":
-		var data ReqData
-		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
-			httpError(w, 500, err)
-			return
-		}
-
-		res, err = handleAddClap(r.Context(), db, data.URL)
+		res, err = handleAddClap(r.Context(), db, url)
 		if err != nil {
 			httpError(w, 500, err)
 			return
@@ -134,20 +123,13 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //ServeLambda AWS lambda event handler
 func ServeLambda(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 
+	url := cast.ToString(r.QueryStringParameters["url"])
+
 	switch r.HTTPMethod {
 	case "GET":
-		url := cast.ToString(r.QueryStringParameters["url"])
 		return handleGetClap(context.Background(), db, url)
 	case "POST":
-		var data ReqData
-
-		if err := json.NewDecoder(strings.NewReader(r.Body)).Decode(&data); err != nil {
-			return &events.APIGatewayProxyResponse{
-				StatusCode: 500,
-				Body:       fmt.Sprintf("Failed to parse payload: %v", err),
-			}, nil
-		}
-		return handleAddClap(context.Background(), db, data.URL)
+		return handleAddClap(context.Background(), db, url)
 	}
 
 	return &events.APIGatewayProxyResponse{
