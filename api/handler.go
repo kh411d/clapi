@@ -3,38 +3,80 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"log"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/aws/aws-lambda-go/events"
 	"github.com/go-redis/redis/v8"
+	"github.com/spf13/cast"
+	"github.com/spf13/viper"
 )
 
-func getClaps() map[string]interface{} {
-	return map[string]interface{}{
-		"StatusCode": 200,
-		"Body":       "Get clap",
+var db KV
+var conf *viper.Viper
+
+func init() {
+	var err error
+	conf = viper.New()
+	conf.AutomaticEnv()
+
+	db, err = NewRedisDB(
+		cast.ToString(conf.Get("REDIS_HOST")),
+		cast.ToString(conf.Get("REDIS_PASSWORD")),
+	)
+
+	if err != nil {
+		panic(err)
 	}
+
 }
 
-func addClap() map[string]interface{} {
-	return map[string]interface{}{
-		"StatusCode": 200,
-		"Body":       "Adding clap",
-	}
+//ReqData request data that comes from post body
+type ReqData struct {
+	URL string `json:"url"`
 }
 
-//HTTPHandler net/http handler
-func HTTPHandler(w http.ResponseWriter, r *http.Request) {
-	var res map[string]interface{}
+func handleGetClap(ctx context.Context, db KV, k string) (*events.APIGatewayProxyResponse, error) {
+	v, err := db.WithContext(ctx).Get(k)
+	if err != nil {
+		log.Printf("Error getClap: %v", err)
+		return &events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Body:       fmt.Sprintf("Failed to process payload: %v", err),
+		}, err
+	}
 
-	switch r.Method {
-	case "GET":
-		res = getClaps()
-	case "POST":
-		res = addClap()
-	default:
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	return &events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       string(v),
+	}, nil
+
+}
+
+func handleAddClap(ctx context.Context, db KV, k string) (*events.APIGatewayProxyResponse, error) {
+
+	if err := db.WithContext(ctx).Incr(k); err != nil {
+		log.Printf("Error addClap: %v", err)
+		return &events.APIGatewayProxyResponse{
+			StatusCode: 500,
+			Body:       fmt.Sprintf("Failed to process payload: %v", err),
+		}, err
+	}
+
+	return &events.APIGatewayProxyResponse{
+		StatusCode: 200,
+		Body:       "ok",
+	}, nil
+}
+
+func httpError(w http.ResponseWriter, httpcode int, err error) {
+
+	res := events.APIGatewayProxyResponse{
+		StatusCode: httpcode,
+		Body:       fmt.Sprintf("Failed to parse payload: %v", err),
 	}
 
 	js, err := json.Marshal(res)
@@ -45,22 +87,72 @@ func HTTPHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.Write(js)
-
 }
 
-//EventHandler AWS lambda event handler
-func EventHandler(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
-	var res map[string]interface{}
+//ServeHTTP net/http handler
+func ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	var res *events.APIGatewayProxyResponse
+	var err error
+
+	switch r.Method {
+	case "GET":
+		url := r.URL.Query().Get("url")
+		res, err = handleGetClap(r.Context(), db, url)
+		if err != nil {
+			httpError(w, 500, err)
+			return
+		}
+
+	case "POST":
+		var data ReqData
+		if err := json.NewDecoder(r.Body).Decode(&data); err != nil {
+			httpError(w, 500, err)
+			return
+		}
+
+		res, err = handleAddClap(r.Context(), db, data.URL)
+		if err != nil {
+			httpError(w, 500, err)
+			return
+		}
+
+	default:
+		httpError(w, http.StatusMethodNotAllowed, nil)
+		return
+	}
+
+	js, err := json.Marshal(res)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.Write(js)
+}
+
+//ServeLambda AWS lambda event handler
+func ServeLambda(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+
 	switch r.HTTPMethod {
 	case "GET":
-		res = getClaps()
-	case "PUT":
-		res = addClap()
+		url := cast.ToString(r.QueryStringParameters["url"])
+		return handleGetClap(context.Background(), db, url)
+	case "POST":
+		var data ReqData
+
+		if err := json.NewDecoder(strings.NewReader(r.Body)).Decode(&data); err != nil {
+			return &events.APIGatewayProxyResponse{
+				StatusCode: 500,
+				Body:       fmt.Sprintf("Failed to parse payload: %v", err),
+			}, nil
+		}
+		return handleAddClap(context.Background(), db, data.URL)
 	}
 
 	return &events.APIGatewayProxyResponse{
-		StatusCode: res["StatusCode"].(int),
-		Body:       res["Body"].(string),
+		StatusCode: http.StatusMethodNotAllowed,
+		Body:       fmt.Sprintf("Failed to parse payload: %v", "Method not allowed"),
 	}, nil
 }
 
@@ -70,14 +162,17 @@ type KV interface {
 	Set(key string, val []byte, expiration time.Duration) error
 	Delete(key string) error
 	Get(key string) ([]byte, error)
+	Incr(key string) error
+	WithContext(ctx context.Context) KV
 }
 
 type redisDB struct {
 	client *redis.Client
+	ctx    context.Context
 }
 
 //NewRedisDB create redis client
-func NewRedisDB(address, password, dbname string) (kv KV, err error) {
+func NewRedisDB(address, password string) (kv KV, err error) {
 
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     address,
@@ -87,16 +182,20 @@ func NewRedisDB(address, password, dbname string) (kv KV, err error) {
 
 	kv = &redisDB{
 		client: rdb,
+		ctx:    context.TODO(),
 	}
 	return
 }
 
+func (m *redisDB) WithContext(ctx context.Context) KV {
+	m.ctx = ctx
+	return m
+}
+
 // Get the item with the provided key.
 func (m *redisDB) Get(key string) (val []byte, err error) {
-	val, err = m.client.Get(context.Background(), key).Bytes()
-	if err != nil {
-		panic(err)
-	}
+	val, err = m.client.Get(m.ctx, key).Bytes()
+
 	return
 }
 
@@ -104,10 +203,7 @@ func (m *redisDB) Get(key string) (val []byte, err error) {
 func (m *redisDB) Add(key string, val []byte, expiration time.Duration) (err error) {
 
 	//NX -- Only set the key if it does not already exist.
-	_, err = m.client.SetNX(context.Background(), key, string(val), expiration).Result()
-	if err != nil {
-		panic(err)
-	}
+	_, err = m.client.SetNX(m.ctx, key, string(val), expiration).Result()
 
 	return
 }
@@ -115,21 +211,17 @@ func (m *redisDB) Add(key string, val []byte, expiration time.Duration) (err err
 // Set writes the given item, unconditionally.
 func (m *redisDB) Set(key string, val []byte, expiration time.Duration) (err error) {
 
-	err = m.client.Set(context.Background(), key, string(val), expiration).Err()
-	if err != nil {
-		panic(err)
-	}
+	return m.client.Set(m.ctx, key, string(val), expiration).Err()
+}
 
-	return
+// Incr increment key
+func (m *redisDB) Incr(key string) (err error) {
+	return m.client.Incr(m.ctx, key).Err()
 }
 
 // Delete deletes the item with the provided key.
-// return nil error if the item didn't already exist in the cache.
 func (m *redisDB) Delete(key string) (err error) {
-	err = m.client.Del(context.Background(), key).Err()
-	if err != nil {
-		panic(err)
-	}
+	err = m.client.Del(m.ctx, key).Err()
 
 	return
 }
