@@ -43,10 +43,10 @@ func handleGetClap(ctx context.Context, db KV, k string) (*events.APIGatewayProx
 	v, err := db.WithContext(ctx).Get(k)
 	if err != nil {
 		log.Printf("Error getClap: %v", err)
-		return &events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       fmt.Sprintf("Failed to process payload: %v", err),
-		}, err
+	}
+
+	if v == nil {
+		v = []byte("0")
 	}
 
 	return &events.APIGatewayProxyResponse{
