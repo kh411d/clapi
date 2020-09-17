@@ -4,7 +4,7 @@ Self-hosted serverless/faas blogging clap api
 
 ### Key-Value Database
 
-Currently, I only support redis at [lambda.store](https://lambda.store/), for free account you'll get Max 5000 Commands Daily and 256 MB Max data size per DB
+Currently, I only support redis, and I'm using a serverless database for redisq [lambda.store](https://lambda.store/), for free account you'll get Max 5000 Commands Daily and 256 MB Max data size per DB
 
 ### Environment Variables
 
