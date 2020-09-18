@@ -46,14 +46,14 @@ func init() {
 }
 
 func validateURL(urlstr string) bool {
-	if conf.Get("URL_HOST") == nil {
-		return true
-	}
-
 	u, err := url.Parse(urlstr)
 	if err != nil {
 		log.Printf("Error validateURL: %v", err)
 		return false
+	}
+
+	if conf.Get("URL_HOST") == nil {
+		return true
 	}
 
 	if u.Hostname() != conf.Get("URL_HOST") {
