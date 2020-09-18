@@ -2,16 +2,35 @@
 
 Self-hosted serverless/faas blogging clap api 
 
-### Key-Value Database
+### Database
 
-Currently, I only support redis, and I'm using a serverless database for redisq [lambda.store](https://lambda.store/), for free account you'll get Max 5000 Commands Daily and 256 MB Max data size per DB
+Pick one of these databases provided, if you set both FaunaDB and Redis env vars, then FaunaDB will be the most likely to be chosen.
+
+###### Fauna.com (FaunaDB)
+
+- Go to Fauna.com web console
+- Create a collection to be used for key-value documents, and then name the collection as `claps`
+- Create index for `claps` collection, 
+  - Name it as `url_idx`
+  - Set terms value as `data.url`
+  - Tick mark the unique box.
+- Create a database access key from the "Security" tab in the left navigation, make sure the role is set to Admin, this access key needs to be set later on `FAUNADB_SECRET_KEY` env variable.
+
+###### Lambda.store (Redis)
+
+- Go to Lambda.store web console
+- Create a new database, name it as you like.
+- Click on the database that you've just created, copy then Endpoint, Port, and Password, these credentials need to be set later on `REDIS_HOST` and `REDIS_ PASSWORD` env variables.
+
 
 ### Environment Variables
 
 Set these vars on any serverless provider you choose,
 
+- `FAUNADB_SECRET_KEY` 
 - `REDIS_HOST` (i.e. us1-xxxxx-xxxx-32223.lambda.store:32223)
-- `REDIS_PASSWORD` (i.e. j20fj0293jf0293jf02090209fj02j0239)
+- `REDIS_PASSWORD` 
+- `URL_HOST` (i.e. khal.web.id, _used to validate url input_)
 
 Netlify only, edit `GO_IMPORT_PATH` value on netlify.toml file corresponds to your Github account
 
@@ -22,10 +41,10 @@ Build locally, don't forget to set your REDIS env vars,
 $ go build -i
 $ ./clapi
 
-$ curl -X POST http://0.0.0.0:3000/clap?url=http://clapi/clap  
-{"statusCode":200,"headers":null,"multiValueHeaders":null,"body":"ok"}  
-$ curl -X GET http://0.0.0.0:3000/clap?url=http://clapi/clap
-{"statusCode":200,"headers":null,"multiValueHeaders":null,"body":"7"}
+$ curl -X POST http://0.0.0.0:3000/?url=http://clapi/clap  
+true
+$ curl -X GET http://0.0.0.0:3000/?url=http://clapi/clap
+7
 ```
 
 ### Deploying on Vercel/Zeit (Git Integration)
@@ -46,10 +65,10 @@ url: [YOUR-DOMAIN]/api/handler
 
 ```
 $ curl -X POST https://clapi.vercel.app/api/handler?url=http://clapi/clap
-{"statusCode":200,"headers":null,"multiValueHeaders":null,"body":"ok"}
+true
 
 $ curl -X GET https://clapi.vercel.app/api/handler?url=http://clapi/clap
-{"statusCode":200,"headers":null,"multiValueHeaders":null,"body":"4"}
+7
 ```
 
 ### Deploying on Netlify (Git Integration)
@@ -67,11 +86,11 @@ After deployed, as example you may access your function as this,
 URL: [YOUR-DOMAIN]/.netlify/functions/clapi
 
 ```
-$ curl -X GET https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
-$ 6
-
 $ curl -X POST https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
-$ ok
+$ true
+
+$ curl -X GET https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
+$ 7
 ```
 
 ### Deploying on Fly.io (flyctl)
