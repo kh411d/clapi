@@ -2,19 +2,20 @@ package api
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
+	"errors"
 	"log"
 	"net/http"
-	"time"
+	"net/url"
 
 	"github.com/aws/aws-lambda-go/events"
-	"github.com/go-redis/redis/v8"
 	"github.com/spf13/cast"
 	"github.com/spf13/viper"
+
+	"github.com/kh411d/clapi/db"
+	"github.com/kh411d/clapi/repo"
 )
 
-var db KV
+var dbconn db.KV
 var conf *viper.Viper
 
 func init() {
@@ -22,10 +23,21 @@ func init() {
 	conf = viper.New()
 	conf.AutomaticEnv()
 
-	db, err = NewRedisDB(
-		cast.ToString(conf.Get("REDIS_HOST")),
-		cast.ToString(conf.Get("REDIS_PASSWORD")),
-	)
+	if conf.Get("FAUNADB_SECRET_KEY") != nil {
+		dbconn, err = db.NewFaunaDB(
+			cast.ToString(conf.Get("FAUNADB_SECRET_KEY")),
+			"claps",
+			"url_idx",
+		)
+	} else if conf.Get("REDIS_HOST") != nil {
+		//use redis instead
+		dbconn, err = db.NewRedisDB(
+			cast.ToString(conf.Get("REDIS_HOST")),
+			cast.ToString(conf.Get("REDIS_PASSWORD")),
+		)
+	} else {
+		err = errors.New("DB not found")
+	}
 
 	if err != nil {
 		panic(err)
@@ -33,177 +45,77 @@ func init() {
 
 }
 
-func handleGetClap(ctx context.Context, db KV, k string) (*events.APIGatewayProxyResponse, error) {
-	v, err := db.WithContext(ctx).Get(k)
+func validateURL(urlstr string) bool {
+	if conf.Get("URL_HOST") == nil {
+		return true
+	}
+
+	u, err := url.Parse(urlstr)
 	if err != nil {
-		log.Printf("Error getClap: %v", err)
+		log.Printf("Error validateURL: %v", err)
+		return false
 	}
 
-	if v == nil {
-		v = []byte("0")
+	if u.Hostname() != conf.Get("URL_HOST") {
+		return false
 	}
 
-	return &events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       string(v),
-	}, nil
-
+	return true
 }
 
-func handleAddClap(ctx context.Context, db KV, k string) (*events.APIGatewayProxyResponse, error) {
-
-	if err := db.WithContext(ctx).Incr(k); err != nil {
-		log.Printf("Error addClap: %v", err)
-		return &events.APIGatewayProxyResponse{
-			StatusCode: 500,
-			Body:       fmt.Sprintf("Failed to process payload: %v", err),
-		}, err
-	}
-
+func apiGatewayProxyResponse(code int, body string, err error) (*events.APIGatewayProxyResponse, error) {
 	return &events.APIGatewayProxyResponse{
-		StatusCode: 200,
-		Body:       "ok",
-	}, nil
-}
-
-func httpError(w http.ResponseWriter, httpcode int, err error) {
-
-	res := events.APIGatewayProxyResponse{
-		StatusCode: httpcode,
-		Body:       fmt.Sprintf("Failed to parse payload: %v", err),
-	}
-
-	js, err := json.Marshal(res)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
+		StatusCode: code,
+		Body:       body,
+	}, err
 }
 
 //ServeHTTP net/http handler
 func ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	var res *events.APIGatewayProxyResponse
-	var err error
 
-	url := r.URL.Query().Get("url")
+	urlstr := r.URL.Query().Get("url")
+
+	if !validateURL(urlstr) {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
+	}
 
 	switch r.Method {
 	case "GET":
-		res, err = handleGetClap(r.Context(), db, url)
-		if err != nil {
-			httpError(w, 500, err)
-			return
-		}
-
+		w.Write([]byte(cast.ToString(repo.GetClap(r.Context(), dbconn, urlstr))))
 	case "POST":
-		res, err = handleAddClap(r.Context(), db, url)
-		if err != nil {
-			httpError(w, 500, err)
-			return
-		}
-
+		w.Write([]byte(cast.ToString(repo.AddClap(r.Context(), dbconn, urlstr))))
 	default:
-		httpError(w, http.StatusMethodNotAllowed, nil)
+		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
 	}
-
-	js, err := json.Marshal(res)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.Write(js)
 }
 
 //ServeLambda AWS lambda event handler
 func ServeLambda(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 
-	url := cast.ToString(r.QueryStringParameters["url"])
+	urlstr := cast.ToString(r.QueryStringParameters["url"])
+
+	if !validateURL(urlstr) {
+		return apiGatewayProxyResponse(
+			http.StatusForbidden,
+			http.StatusText(http.StatusForbidden),
+			nil,
+		)
+	}
 
 	switch r.HTTPMethod {
 	case "GET":
-		return handleGetClap(context.Background(), db, url)
+		body := repo.GetClap(context.Background(), dbconn, urlstr)
+		return apiGatewayProxyResponse(200, cast.ToString(body), nil)
 	case "POST":
-		return handleAddClap(context.Background(), db, url)
+		body := repo.AddClap(context.Background(), dbconn, urlstr)
+		return apiGatewayProxyResponse(200, cast.ToString(body), nil)
 	}
 
-	return &events.APIGatewayProxyResponse{
-		StatusCode: http.StatusMethodNotAllowed,
-		Body:       fmt.Sprintf("Failed to parse payload: %v", "Method not allowed"),
-	}, nil
-}
-
-//KV key-value storage interface
-type KV interface {
-	Add(key string, val []byte, expiration time.Duration) error
-	Set(key string, val []byte, expiration time.Duration) error
-	Delete(key string) error
-	Get(key string) ([]byte, error)
-	Incr(key string) error
-	WithContext(ctx context.Context) KV
-}
-
-type redisDB struct {
-	client *redis.Client
-	ctx    context.Context
-}
-
-//NewRedisDB create redis client
-func NewRedisDB(address, password string) (kv KV, err error) {
-
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     address,
-		Password: password, // no password set
-		DB:       0,        // use default DB
-	})
-
-	kv = &redisDB{
-		client: rdb,
-		ctx:    context.TODO(),
-	}
-	return
-}
-
-func (m *redisDB) WithContext(ctx context.Context) KV {
-	m.ctx = ctx
-	return m
-}
-
-// Get the item with the provided key.
-func (m *redisDB) Get(key string) (val []byte, err error) {
-	val, err = m.client.Get(m.ctx, key).Bytes()
-
-	return
-}
-
-// Add writes the given item, if no value already exists for its key.
-func (m *redisDB) Add(key string, val []byte, expiration time.Duration) (err error) {
-
-	//NX -- Only set the key if it does not already exist.
-	_, err = m.client.SetNX(m.ctx, key, string(val), expiration).Result()
-
-	return
-}
-
-// Set writes the given item, unconditionally.
-func (m *redisDB) Set(key string, val []byte, expiration time.Duration) (err error) {
-
-	return m.client.Set(m.ctx, key, string(val), expiration).Err()
-}
-
-// Incr increment key
-func (m *redisDB) Incr(key string) (err error) {
-	return m.client.Incr(m.ctx, key).Err()
-}
-
-// Delete deletes the item with the provided key.
-func (m *redisDB) Delete(key string) (err error) {
-	err = m.client.Del(m.ctx, key).Err()
-
-	return
+	return apiGatewayProxyResponse(
+		http.StatusMethodNotAllowed,
+		http.StatusText(http.StatusMethodNotAllowed),
+		nil,
+	)
 }
