@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"errors"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
@@ -45,22 +46,22 @@ func init() {
 
 }
 
-func validateURL(urlstr string) bool {
+func getURL(urlstr string) string {
 	u, err := url.Parse(urlstr)
 	if err != nil {
 		log.Printf("Error validateURL: %v", err)
-		return false
+		return ""
 	}
 
-	if conf.Get("URL_HOST") == nil {
-		return true
+	u.Scheme = "http"
+
+	if conf.Get("URL_HOST") != nil {
+		if u.Hostname() != conf.Get("URL_HOST") {
+			return ""
+		}
 	}
 
-	if u.Hostname() != conf.Get("URL_HOST") {
-		return false
-	}
-
-	return true
+	return u.String()
 }
 
 func apiGatewayProxyResponse(code int, body string, err error) (*events.APIGatewayProxyResponse, error) {
@@ -73,9 +74,12 @@ func apiGatewayProxyResponse(code int, body string, err error) (*events.APIGatew
 //ServeHTTP net/http handler
 func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
-	urlstr := r.URL.Query().Get("url")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
 
-	if !validateURL(urlstr) {
+	urlstr := getURL(r.URL.Query().Get("url"))
+
+	if urlstr == "" {
 		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
@@ -84,7 +88,13 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case "GET":
 		w.Write([]byte(cast.ToString(repo.GetClap(r.Context(), dbconn, urlstr))))
 	case "POST":
-		w.Write([]byte(cast.ToString(repo.AddClap(r.Context(), dbconn, urlstr))))
+		rBody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Printf("Error reading body: %v", err)
+			http.Error(w, "can't read body", http.StatusBadRequest)
+			return
+		}
+		w.Write([]byte(cast.ToString(repo.AddClap(r.Context(), dbconn, urlstr, cast.ToInt64(string(rBody))))))
 	default:
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
@@ -94,9 +104,9 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 //ServeLambda AWS lambda event handler
 func ServeLambda(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 
-	urlstr := cast.ToString(r.QueryStringParameters["url"])
+	urlstr := getURL(cast.ToString(r.QueryStringParameters["url"]))
 
-	if !validateURL(urlstr) {
+	if urlstr == "" {
 		return apiGatewayProxyResponse(
 			http.StatusForbidden,
 			http.StatusText(http.StatusForbidden),
@@ -109,7 +119,7 @@ func ServeLambda(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyRespon
 		body := repo.GetClap(context.Background(), dbconn, urlstr)
 		return apiGatewayProxyResponse(200, cast.ToString(body), nil)
 	case "POST":
-		body := repo.AddClap(context.Background(), dbconn, urlstr)
+		body := repo.AddClap(context.Background(), dbconn, urlstr, cast.ToInt64(r.Body))
 		return apiGatewayProxyResponse(200, cast.ToString(body), nil)
 	}
 
