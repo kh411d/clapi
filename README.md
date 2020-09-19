@@ -41,7 +41,7 @@ Build locally, don't forget to set your REDIS env vars,
 $ go build -i
 $ ./clapi
 
-$ curl -X POST http://0.0.0.0:3000/?url=http://clapi/clap  
+$ curl -X POST -d '2' http://0.0.0.0:3000/?url=http://clapi/clap  
 true
 $ curl -X GET http://0.0.0.0:3000/?url=http://clapi/clap
 7
@@ -64,7 +64,7 @@ After deployed, as example you may access your function as this,
 url: [YOUR-DOMAIN]/api/handler
 
 ```
-$ curl -X POST https://clapi.vercel.app/api/handler?url=http://clapi/clap
+$ curl -X POST -d '2' https://clapi.vercel.app/api/handler?url=http://clapi/clap
 true
 
 $ curl -X GET https://clapi.vercel.app/api/handler?url=http://clapi/clap
@@ -86,7 +86,7 @@ After deployed, as example you may access your function as this,
 URL: [YOUR-DOMAIN]/.netlify/functions/clapi
 
 ```
-$ curl -X POST https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
+$ curl -X POST -d '2' https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
 $ true
 
 $ curl -X GET https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
