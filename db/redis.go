@@ -60,6 +60,14 @@ func (m *redisDB) Incr(key string) (err error) {
 	return m.client.Incr(m.ctx, key).Err()
 }
 
+// IncrBy increment key
+func (m *redisDB) IncrBy(key string, val int64) (err error) {
+	if val == 0 {
+		return nil
+	}
+	return m.client.IncrBy(m.ctx, key, val).Err()
+}
+
 // Delete deletes the item with the provided key.
 func (m *redisDB) Delete(key string) (err error) {
 	err = m.client.Del(m.ctx, key).Err()

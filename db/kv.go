@@ -7,16 +7,17 @@ import (
 
 //KV key value db interface
 type KV interface {
-	Add(key string, val []byte, expiration time.Duration) error
-	Set(key string, val []byte, expiration time.Duration) error
-	Delete(key string) error
-	Get(key string) ([]byte, error)
-	Incr(key string) error
-	WithContext(ctx context.Context) KV
+	Add(string, []byte, time.Duration) error
+	Set(string, []byte, time.Duration) error
+	Delete(string) error
+	Get(string) ([]byte, error)
+	Incr(string) error
+	IncrBy(string, int64) error
+	WithContext(context.Context) KV
 }
 
 //Clap data document structure
 type Clap struct {
 	URL   string `fauna:"url"`
-	Count int    `fauna:"count"`
+	Count int64  `fauna:"count"`
 }

@@ -73,7 +73,7 @@ func (m *faunaDB) Add(key string, val []byte, expiration time.Duration) (err err
 
 	clap := Clap{
 		URL:   key,
-		Count: cast.ToInt(val),
+		Count: cast.ToInt64(val),
 	}
 
 	_, err = m.client.Query(
@@ -143,6 +143,71 @@ func (m *faunaDB) Incr(key string) (err error) {
 				refID,
 				f.Obj{"data": f.Obj{
 					"count": clap.Count + 1,
+				}},
+			),
+		)
+	}
+
+	return
+
+}
+
+// IncrBy increment key
+// TODO: need to find efficient way to do increment
+func (m *faunaDB) IncrBy(key string, val int64) (err error) {
+
+	var refID f.RefV
+	var clap Clap
+	var res f.Value
+
+	if val == 0 {
+		return nil
+	}
+
+	clap = Clap{
+		URL:   key,
+		Count: val,
+	}
+
+	_, err = m.client.Query(
+		f.Create(
+			f.Collection("claps"),
+			f.Obj{"data": clap},
+		),
+	)
+
+	//Try to update
+	if err != nil {
+		log.Printf("Error Fauna IncrBy: %v", err)
+
+		// Retrieve profile by its ID
+		res, err = m.client.Query(
+			f.Get(
+				f.MatchTerm(
+					f.Index(m.keyIndex),
+					key,
+				),
+			),
+		)
+
+		if err != nil {
+			return
+		}
+
+		if err := res.At(f.ObjKey("ref")).Get(&refID); err != nil {
+			return err
+		}
+
+		if err := res.At(f.ObjKey("data")).Get(&clap); err != nil {
+			return err
+		}
+
+		// Update existing profile entry
+		_, err = m.client.Query(
+			f.Update(
+				refID,
+				f.Obj{"data": f.Obj{
+					"count": clap.Count + val,
 				}},
 			),
 		)
