@@ -2,25 +2,29 @@
 
 Self-hosted serverless/faas blogging clap api 
 
+### Frontend
+
+You can use this api for your own clap button or maybe you could give it a try for my ready made app [https://github.com/kh411d/clap-it](https://github.com/kh411d/clap-it)
+
 ### Database
 
 Pick one of these databases provided, if you set both FaunaDB and Redis env vars, then FaunaDB will be the most likely to be chosen.
 
 ###### Fauna.com (FaunaDB)
 
-- Go to Fauna.com web console
+- Go to [Fauna.com](https://fauna.com/) web console
 - Create a collection, name it as `claps`, it will be used as key-value documents
 - Create index for `claps` collection, 
   - Name it as `url_idx`
   - Set terms value as `data.url`
   - Tick mark the unique box.
-- Create a database access key from the "Security" tab in the left navigation, make sure the role is set to Admin, this access key needs to be set later on `FAUNADB_SECRET_KEY` env variable.
+- Create a database access key from the _Security_ tab in the left navigation, make sure the role is set to Admin, this access key needs to be set later on `FAUNADB_SECRET_KEY` env variable.
 
 ###### Lambda.store (Redis)
 
-- Go to Lambda.store web console
+- Go to [Lambda.store](https://lambda.store/) web console
 - Create a new database, name it as you like.
-- Click on the database that you've just created, copy then Endpoint, Port, and Password, these credentials need to be set later on `REDIS_HOST` and `REDIS_ PASSWORD` env variables.
+- Click on the database that you've just created, take a note for _Endpoint_, _Port_, and _Password_, these credentials need to be set later on `REDIS_HOST` and `REDIS_ PASSWORD` env variables.
 
 
 ### Environment Variables
@@ -28,7 +32,7 @@ Pick one of these databases provided, if you set both FaunaDB and Redis env vars
 Set these vars on any serverless provider you choose,
 
 - `FAUNADB_SECRET_KEY` 
-- `REDIS_HOST` (i.e. us1-xxxxx-xxxx-32223.lambda.store:32223)
+- `REDIS_HOST` (`[ENDPOINT]:[PORT]` i.e. `us1-xxxxx-xxxx-32223.lambda.store:32223`)
 - `REDIS_PASSWORD` 
 - `URL_HOST` (i.e. khal.web.id, _used to validate url input_)
 
@@ -60,10 +64,8 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-Need to put all the code in one file `/api/handler.go`, otherwise deployment will fail
-
 After deployed, as example you may access your function as this,  
-url: [YOUR-DOMAIN]/api/handler
+__Base API URL__: `[YOUR-VERCEL-DOMAIN]/api/handler`
 
 ```
 $ curl -X POST -d '2' https://clapi.vercel.app/api/handler?url=http://clapi/clap
@@ -87,7 +89,7 @@ and then re-deploy the app from,
 `Deploys > Trigger deploy > Deploy site`
 
 After deployed, as example you may access your function as this,  
-URL: [YOUR-DOMAIN]/.netlify/functions/clapi
+__Base API URL__: `[YOUR-NETLIFY-DOMAIN]/.netlify/functions/clapi`
 
 ```
 $ curl -X POST -d '2' https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
