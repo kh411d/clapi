@@ -23,9 +23,9 @@ func GetClap(ctx context.Context, dbconn db.KV, k string) string {
 }
 
 //AddClap increament clap data count
-func AddClap(ctx context.Context, dbconn db.KV, k string) bool {
+func AddClap(ctx context.Context, dbconn db.KV, k string, v int64) bool {
 
-	if err := dbconn.WithContext(ctx).Incr(k); err != nil {
+	if err := dbconn.WithContext(ctx).IncrBy(k, v); err != nil {
 		log.Printf("Error addClap: %v", err)
 		//Do not error
 		return false
