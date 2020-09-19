@@ -9,7 +9,7 @@ Pick one of these databases provided, if you set both FaunaDB and Redis env vars
 ###### Fauna.com (FaunaDB)
 
 - Go to Fauna.com web console
-- Create a collection to be used for key-value documents, and then name the collection as `claps`
+- Create a collection, name it as `claps`, it will be used as key-value documents
 - Create index for `claps` collection, 
   - Name it as `url_idx`
   - Set terms value as `data.url`
@@ -32,11 +32,11 @@ Set these vars on any serverless provider you choose,
 - `REDIS_PASSWORD` 
 - `URL_HOST` (i.e. khal.web.id, _used to validate url input_)
 
-Netlify only, edit `GO_IMPORT_PATH` value on netlify.toml file corresponds to your Github account
+Netlify only, edit `GO_IMPORT_PATH` value on `netlify.toml` file corresponds to your Github account
 
 ### Localhost
 
-Build locally, don't forget to set your REDIS env vars,
+Build locally, don't forget to set your env vars,
 ```
 $ go build -i
 $ ./clapi
