@@ -49,6 +49,8 @@ $ curl -X GET http://0.0.0.0:3000/?url=http://clapi/clap
 
 ### Deploying on Vercel/Zeit (Git Integration)
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/git/external?repository-url=https%3A%2F%2Fgithub.com%2Fkh411d%2Fclapi)
+
 Go files in the `/api` directory that export a function matching the net/http Go API will be served as Serverless Functions.
 
 ```
@@ -72,6 +74,8 @@ $ curl -X GET https://clapi.vercel.app/api/handler?url=http://clapi/clap
 ```
 
 ### Deploying on Netlify (Git Integration)
+
+[![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/kh411d/clapi)
 
 Netlify can build your source Go functions into AWS Lambda compatible binaries.
 
