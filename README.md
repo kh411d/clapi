@@ -2,6 +2,8 @@
 
 Self-hosted serverless/faas blogging clap api 
 
+[API Reference](https://clapikh411d.docs.apiary.io/#reference/0/clap)
+
 ### Frontend
 
 You can use this api for your own clap button or maybe you could give it a try for my ready made app [https://github.com/kh411d/clap-it](https://github.com/kh411d/clap-it)
