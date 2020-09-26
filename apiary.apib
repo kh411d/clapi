@@ -1,0 +1,31 @@
+FORMAT: 1A
+
+# Medium-like Clap API
+
+This is meant to be used for Clap frontend.
+
+## Clap [/{endpoint}{?url}]
+
++ Parameters
+    + endpoint (optional) - A path variable for a valid URL
+    + url (optional) - A query variable
+
+### Get a clap counts [GET]
+
+Get clap counts based on given url
+
++ Response 200 (text/plain)
+
+        10
+
+### Update claps [POST]
+
+Update claps for the given url
+
++ Request (text/plain)
+
+        10
+
++ Response 200 (text/plain)
+
+        true
