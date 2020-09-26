@@ -50,7 +50,7 @@ Set these vars on any serverless provider you choose,
 - `FAUNADB_SECRET_KEY` 
 - `REDIS_HOST` (`[ENDPOINT]:[PORT]` i.e. `us1-xxxxx-xxxx-32223.lambda.store:32223`)
 - `REDIS_PASSWORD` 
-- `URL_HOST` (i.e. khal.web.id, _used to validate url input_)
+- `URL_HOST` (i.e. khal.web.id, _used to validate the hostname_)
 
 Netlify only, edit `GO_IMPORT_PATH` value on `netlify.toml` file corresponds to your Github account
 
