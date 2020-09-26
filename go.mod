@@ -8,4 +8,5 @@ require (
 	github.com/go-redis/redis/v8 v8.0.0
 	github.com/spf13/cast v1.3.0
 	github.com/spf13/viper v1.7.1
+	github.com/stretchr/testify v1.6.1
 )
