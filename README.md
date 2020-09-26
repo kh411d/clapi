@@ -4,6 +4,20 @@ Self-hosted serverless/faas blogging clap api
 
 [API Reference](https://clapikh411d.docs.apiary.io/#reference/0/clap)
 
+### Installation
+
+```
+$ go build 
+```
+
+Please do run the test before pull request,
+```
+$ go test ./...
+```
+
+Mock file generated from mockery,
+[https://github.com/vektra/mockery](https://github.com/vektra/mockery)
+
 ### Frontend
 
 You can use this api for your own clap button or maybe you could give it a try for my ready made app [https://github.com/kh411d/clap-it](https://github.com/kh411d/clap-it)
