@@ -20,9 +20,17 @@ var dbconn db.KV
 var conf *viper.Viper
 
 func init() {
-	var err error
+	setEnv()
+	setDB()
+}
+
+func setEnv() {
 	conf = viper.New()
 	conf.AutomaticEnv()
+}
+
+func setDB() {
+	var err error
 
 	if conf.Get("FAUNADB_SECRET_KEY") != nil {
 		dbconn, err = db.NewFaunaDB(
@@ -41,13 +49,14 @@ func init() {
 	}
 
 	if err != nil {
+		log.Printf("No DB Env found")
 		panic(err)
 	}
-
 }
 
 func getURL(urlstr string) string {
-	u, err := url.Parse(urlstr)
+
+	u, err := url.ParseRequestURI(urlstr)
 	if err != nil {
 		log.Printf("Error validateURL: %v", err)
 		return ""
@@ -86,7 +95,9 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	switch r.Method {
 	case "GET":
-		w.Write([]byte(cast.ToString(repo.GetClap(r.Context(), dbconn, urlstr))))
+		w.WriteHeader(200)
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte(repo.Clap.GetClap(r.Context(), dbconn, urlstr)))
 	case "POST":
 		rBody, err := ioutil.ReadAll(r.Body)
 		if err != nil {
@@ -94,7 +105,10 @@ func ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "can't read body", http.StatusBadRequest)
 			return
 		}
-		w.Write([]byte(cast.ToString(repo.AddClap(r.Context(), dbconn, urlstr, cast.ToInt64(string(rBody))))))
+		repo.Clap.AddClap(r.Context(), dbconn, urlstr, cast.ToInt64(string(rBody)))
+		w.WriteHeader(200)
+		w.Header().Set("Content-Type", "text/plain")
+		w.Write([]byte{})
 	default:
 		http.Error(w, http.StatusText(http.StatusMethodNotAllowed), http.StatusMethodNotAllowed)
 		return
@@ -116,11 +130,11 @@ func ServeLambda(r events.APIGatewayProxyRequest) (*events.APIGatewayProxyRespon
 
 	switch r.HTTPMethod {
 	case "GET":
-		body := repo.GetClap(context.Background(), dbconn, urlstr)
-		return apiGatewayProxyResponse(200, cast.ToString(body), nil)
+		body := repo.Clap.GetClap(context.Background(), dbconn, urlstr)
+		return apiGatewayProxyResponse(200, body, nil)
 	case "POST":
-		body := repo.AddClap(context.Background(), dbconn, urlstr, cast.ToInt64(r.Body))
-		return apiGatewayProxyResponse(200, cast.ToString(body), nil)
+		repo.Clap.AddClap(context.Background(), dbconn, urlstr, cast.ToInt64(r.Body))
+		return apiGatewayProxyResponse(200, "", nil)
 	}
 
 	return apiGatewayProxyResponse(
