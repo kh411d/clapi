@@ -20,7 +20,7 @@ Mock file generated from mockery,
 
 ### Frontend
 
-You can use this api for your own clap button or maybe you could give it a try for my ready made app [https://github.com/kh411d/clap-it](https://github.com/kh411d/clap-it)
+You can use this api for your own web component or playing with my custom-made clap button [https://github.com/kh411d/clap-it](https://github.com/kh411d/clap-it)
 
 ### Database
 
@@ -62,7 +62,7 @@ $ go build -i
 $ ./clapi
 
 $ curl -X POST -d '2' http://0.0.0.0:3000/?url=http://clapi/clap  
-true
+
 $ curl -X GET http://0.0.0.0:3000/?url=http://clapi/clap
 7
 ```
@@ -84,10 +84,10 @@ After deployed, as example you may access your function as this,
 __Base API URL__: `[YOUR-VERCEL-DOMAIN]/api/handler`
 
 ```
-$ curl -X POST -d '2' https://clapi.vercel.app/api/handler?url=http://clapi/clap
-true
+$ curl -X POST -d '2' https://42kl24j.vercel.app/api/handler?url=http://clapi/clap
 
-$ curl -X GET https://clapi.vercel.app/api/handler?url=http://clapi/clap
+
+$ curl -X GET https://42kl24j.vercel.app/api/handler?url=http://clapi/clap
 7
 ```
 
@@ -109,7 +109,6 @@ __Base API URL__: `[YOUR-NETLIFY-DOMAIN]/.netlify/functions/clapi`
 
 ```
 $ curl -X POST -d '2' https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
-$ true
 
 $ curl -X GET https://flamboyant-khorana-5b394b.netlify.app/.netlify/functions/clapi?url=http://clapi/clap
 $ 7
