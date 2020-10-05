@@ -12,7 +12,7 @@ $ go build
 
 Please do run the test before pull request,
 ```
-$ go test ./...
+$ FAUNADB_SECRET_KEY=test REDIS_HOST=test bash -c 'go test ./...'
 ```
 
 Mock file generated from mockery,

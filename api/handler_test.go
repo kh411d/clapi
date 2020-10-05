@@ -19,22 +19,13 @@ import (
 	mockRepo "github.com/kh411d/clapi/repo/mocks"
 )
 
-func TestInit(t *testing.T) {
-	var isPanic bool
-	defer func() {
-		if r := recover(); r != nil {
-			isPanic = true
-		}
-	}()
+func TestEnv(t *testing.T) {
+
 	os.Setenv("FAUNADB_SECRET_KEY", "")
 	os.Setenv("REDIS_HOST", "")
 
 	setEnv()
-	setDB()
-
-	if !isPanic {
-		t.Errorf("Should be panic")
-	}
+	assert.Panics(t, func() { setDB() }, "should be panic")
 
 	os.Setenv("FAUNADB_SECRET_KEY", "testing")
 	os.Setenv("REDIS_HOST", "")
@@ -42,9 +33,7 @@ func TestInit(t *testing.T) {
 	setEnv()
 	setDB()
 
-	if dbconn == nil {
-		t.Errorf("DBCon should be created")
-	}
+	assert.NotEqual(t, dbconn, nil, "DBCon should be created")
 
 	os.Setenv("FAUNADB_SECRET_KEY", "")
 	os.Setenv("REDIS_HOST", "testing")
@@ -52,9 +41,7 @@ func TestInit(t *testing.T) {
 	setEnv()
 	setDB()
 
-	if dbconn == nil {
-		t.Errorf("DBCon should be created")
-	}
+	assert.NotEqual(t, dbconn, nil, "DBCon should be created")
 }
 
 func TestGetUrl(t *testing.T) {
